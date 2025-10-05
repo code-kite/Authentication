@@ -2,6 +2,12 @@
 
 Welcome to your Authentication App powered by Drizzle ORM, Expo, and SQLite. This guide will walk you through setting up the database, configuration files, migrations, and usage in your app.
 
+<img width="1170" height="2532" alt="Simulator Screenshot - iPhone 16e - 2025-10-05 at 19 29 11" src="https://github.com/user-attachments/assets/fbcf2a2e-c6ed-46a3-acfb-4df3f497acb2" />
+<img width="1170" height="2532" alt="Simulator Screenshot - iPhone 16e - 2025-10-05 at 19 29 15" src="https://github.com/user-attachments/assets/211b9328-fcac-41bb-9d35-71523c657b5a" />
+<img width="1170" height="2532" alt="Simulator Screenshot - iPhone 16e - 2025-10-05 at 19 29 20" src="https://github.com/user-attachments/assets/69277b67-636c-46e6-af07-112b2f781c59" />
+
+
+
 🚀 Getting Started
 ✅ Prerequisites
 
