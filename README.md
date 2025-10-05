@@ -1,50 +1,229 @@
-# Welcome to your Expo app 👋
+🔐 Authentication App — Drizzle ORM + Expo + SQLite
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Welcome to your Authentication App powered by Drizzle ORM, Expo, and SQLite. This guide will walk you through setting up the database, configuration files, migrations, and usage in your app.
 
-## Get started
+🚀 Getting Started
+✅ Prerequisites
 
-1. Install dependencies
+Node.js and npm installed
 
-   ```bash
-   npm install
-   ```
+Expo project initialized
 
-2. Start the app
+TypeScript support
 
-   ```bash
-   npx expo start
-   ```
+🧱 1. Define Your Database Schema
 
-In the output, you'll find options to open the app in a
+Install Drizzle ORM:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+npm install drizzle-orm
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
-## Get a fresh project
+Create the schema file:
 
-When you're ready, run:
+// src/db/schema.ts
 
-```bash
-npm run reset-project
-```
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+export const user = sqliteTable("user", {
+  id: integer("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+});
 
-## Learn more
+⚙️ 2. Setup Configuration Files
+🔧 Babel Configuration
 
-To learn more about developing your project with Expo, look at the following resources:
+Install plugin:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+npm install babel-plugin-inline-import
 
-## Join the community
 
-Join our community of developers creating universal apps.
+If you don’t already have babel.config.js, generate one:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+npx expo customize babel.config.js
+
+
+Update babel.config.js:
+
+module.exports = function(api) {
+  api.cache(true);
+  return {
+    presets: ['babel-preset-expo'],
+    plugins: [["inline-import", { "extensions": [".sql"] }]]
+  };
+};
+
+🔧 Metro Configuration
+
+If not already present, create metro.config.js:
+
+npx expo customize metro.config.js
+
+
+Update metro.config.js:
+
+const { getDefaultConfig } = require('expo/metro-config');
+
+/** @type {import('expo/metro-config').MetroConfig} */
+const config = getDefaultConfig(__dirname);
+
+config.resolver.sourceExts.push('sql'); // Add support for SQL file imports
+
+module.exports = config;
+
+🧰 3. Install Drizzle Kit (CLI & Migrations)
+
+Install the CLI tool for migrations:
+
+npm install -D drizzle-kit
+
+
+Create the drizzle.config.ts file in the root of your project:
+
+// drizzle.config.ts
+
+import type { Config } from 'drizzle-kit';
+
+export default {
+  schema: './src/db/schema.ts', // Path to schema
+  out: './src/drizzle',         // Output folder for migrations
+  dialect: 'sqlite',
+  driver: 'expo',               // Use Expo driver for SQLite
+} satisfies Config;
+
+📦 4. Generate Migrations
+
+Convert your TypeScript schema into .sql migration files:
+
+npx drizzle-kit generate
+
+🌐 5. Setup Root Layout with SQLite Provider
+
+Update your RootLayout.tsx or equivalent file:
+
+// app/_layout.tsx or RootLayout.tsx
+
+import { Stack } from "expo-router";
+import { SQLiteProvider } from 'expo-sqlite';
+
+export const DATABASE_NAME = 'MyDatabase';
+
+export default function RootLayout() {
+  return (
+    <SQLiteProvider
+      databaseName={DATABASE_NAME}
+      options={{ enableChangeListener: true }}
+    >
+      <Stack />
+    </SQLiteProvider>
+  );
+}
+
+🔁 6. Apply Migrations on App Init
+
+Update your RootLayout.tsx to run migrations automatically on init:
+
+import migrations from "@/src/drizzle/migrations";
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { migrate } from "drizzle-orm/expo-sqlite/migrator";
+import { Stack } from "expo-router";
+import { SQLiteProvider } from 'expo-sqlite';
+
+export const DATABASE_NAME = 'MyDatabase';
+
+export default function RootLayout() {
+  return (
+    <SQLiteProvider
+      databaseName={DATABASE_NAME}
+      options={{ enableChangeListener: true }}
+      onInit={async (database) => {
+        try {
+          const db = drizzle(database);
+          await migrate(db, migrations); // Run migrations
+          console.log("Migration success");
+        } catch (error) {
+          console.error("Migration error", error);
+        }
+      }}
+    >
+      <Stack />
+    </SQLiteProvider>
+  );
+}
+
+📋 7. Reading and Writing Data with Drizzle
+
+Create a screen (e.g., src/app/index.tsx) to insert and display users:
+
+import * as schema from "@/src/db/schema";
+import { Button } from "@react-navigation/elements";
+import { drizzle, useLiveQuery } from "drizzle-orm/expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite";
+import { Text, View } from "react-native";
+import { user } from "../db/schema";
+
+export default function Index() {
+  const expoDb = useSQLiteContext();
+  const drizzleDB = drizzle(expoDb, { schema });
+
+  const { data } = useLiveQuery(drizzleDB.select().from(user));
+
+  const addUser = async () => {
+    try {
+      await drizzleDB.insert(user).values({
+        name: `User ${Date.now()}`,
+        email: `user${Date.now()}@example.com`,
+      });
+    } catch (error) {
+      console.error("Error adding user:", error);
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, padding: 20 }}>
+      <Text style={{ fontSize: 18, marginBottom: 20 }}>Users:</Text>
+      
+      {data?.map((userData) => (
+        <View key={userData.id} style={{ marginBottom: 15 }}>
+          <Text>ID: {userData.id}</Text>
+          <Text>Name: {userData.name}</Text>
+          <Text>Email: {userData.email}</Text>
+        </View>
+      ))}
+      
+      <Button onPress={addUser}>Add User</Button>
+    </View>
+  );
+}
+
+🧪 You're Done!
+
+You now have:
+
+✅ A typed schema with Drizzle ORM
+✅ Auto-generated migration files
+✅ SQLite integration using Expo
+✅ Real-time querying and UI updates
+
+📁 Project Structure Summary
+project-root/
+├── drizzle.config.ts
+├── metro.config.js
+├── babel.config.js
+├── src/
+│   ├── db/
+│   │   ├── schema.ts         # Drizzle ORM schema
+│   └── drizzle/
+│       └── migrations/       # SQL migration files
+├── app/
+│   ├── _layout.tsx           # SQLite Provider & Migrations
+│   └── index.tsx             # UI to read/write users
+
+🧠 Helpful Tips
+
+Use drizzle-kit push to push schema directly to DB (for advanced use)
+
+Check Drizzle ORM Docs
+ for advanced usage
+
+Happy coding! 🎉
